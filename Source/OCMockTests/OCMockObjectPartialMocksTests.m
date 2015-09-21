@@ -126,6 +126,18 @@ static NSUInteger initializeCallCount = 0;
 @end
 
 
+@interface OCMockObjectWithClassMessage : NSObject
+
+@end
+
+@implementation OCMockObjectWithClassMessage
+
++(void)classMessage
+{
+	
+}
+
+@end
 
 
 @interface OCMockObjectPartialMocksTests : XCTestCase
@@ -139,6 +151,40 @@ static NSUInteger initializeCallCount = 0;
 @implementation OCMockObjectPartialMocksTests
 
 #pragma mark   Tests for stubbing with partial mocks
+
+-(void)testPartialMockingWithClassMessages
+{
+	OCMockObjectWithClassMessage* initObject = [[OCMockObjectWithClassMessage alloc] init];
+	id mock = [OCMockObject partialMockForObject: initObject];
+	
+	XCTAssert(mock);
+	
+	Class cls = [OCMockObjectWithClassMessage class];//object_getClass([OCMockObjectWithClassMessage class]);
+	
+	Class metaClass = object_getClass(cls);
+	XCTAssertNotNil(metaClass);
+	
+	Class metaSuperClass =  class_getSuperclass(metaClass);
+	XCTAssertNotNil(metaSuperClass);
+	
+	SEL replacedSelector = NSSelectorFromString(@"ocmock_replaced_classMessage");
+	SEL originalSelector = @selector(classMessage);
+	
+	Method m = class_getInstanceMethod(metaClass, replacedSelector);
+	XCTAssert(m != NULL);
+
+	m = class_getInstanceMethod(metaClass, originalSelector);
+	XCTAssert(m != NULL);
+	
+	//Now attempt to get it off the super class defined class message.
+	//I would expect this to be NULL but our metaClassSuper is OCMockObjectWithClassMessage?
+	m = class_getInstanceMethod(metaSuperClass, originalSelector);
+	XCTAssert(m == NULL);
+	
+	//This line dies with EXC_BAD_INSTRUCTION code=EXC_i386_INVOP subcode=0x0
+	m = class_getInstanceMethod(metaSuperClass, replacedSelector);
+	XCTAssert(m == NULL);
+}
 
 - (void)testStubsMethodsOnPartialMock
 {
