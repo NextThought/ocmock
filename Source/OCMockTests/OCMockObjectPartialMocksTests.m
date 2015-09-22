@@ -152,7 +152,7 @@ static NSUInteger initializeCallCount = 0;
 
 #pragma mark   Tests for stubbing with partial mocks
 
--(void)testPartialMockingWithClassMessages
+-(void)testRuntimeInspectialOfPartialMockedClassMessage
 {
 	OCMockObjectWithClassMessage* initObject = [[OCMockObjectWithClassMessage alloc] init];
 	id mock = [OCMockObject partialMockForObject: initObject];
@@ -164,7 +164,7 @@ static NSUInteger initializeCallCount = 0;
 	Class metaClass = object_getClass(cls);
 	XCTAssertNotNil(metaClass);
 	
-	Class metaSuperClass =  class_getSuperclass(metaClass);
+	Class metaSuperClass =  class_getSuperclass(metaClass);//object_getClass(class_getSuperclass(cls));
 	XCTAssertNotNil(metaSuperClass);
 	
 	SEL replacedSelector = NSSelectorFromString(@"ocmock_replaced_classMessage");
@@ -173,6 +173,39 @@ static NSUInteger initializeCallCount = 0;
 	Method m = class_getInstanceMethod(metaClass, replacedSelector);
 	XCTAssert(m != NULL);
 
+	m = class_getInstanceMethod(metaClass, originalSelector);
+	XCTAssert(m != NULL);
+	
+	//Now attempt to get it off the super class defined class message.
+	//I would expect this to be NULL but our metaClassSuper is OCMockObjectWithClassMessage?
+	m = class_getInstanceMethod(metaSuperClass, originalSelector);
+	XCTAssert(m == NULL);
+	
+	//This line dies with EXC_BAD_INSTRUCTION code=EXC_i386_INVOP subcode=0x0
+	m = class_getInstanceMethod(metaSuperClass, replacedSelector);
+	XCTAssert(m == NULL);
+}
+
+-(void)testRuntimeInspectialOfMockedClassMessage
+{
+	id mock = [OCMockObject mockForClass: [OCMockObjectWithClassMessage class]];
+	
+	XCTAssert(mock);
+	
+	Class cls = [OCMockObjectWithClassMessage class];//object_getClass([OCMockObjectWithClassMessage class]);
+	
+	Class metaClass = object_getClass(cls);
+	XCTAssertNotNil(metaClass);
+	
+	Class metaSuperClass =  class_getSuperclass(metaClass);//object_getClass(class_getSuperclass(cls)); //This avoids the crash and I believe is more sematically correct.
+	XCTAssertNotNil(metaSuperClass);
+	
+	SEL replacedSelector = NSSelectorFromString(@"ocmock_replaced_classMessage");
+	SEL originalSelector = @selector(classMessage);
+	
+	Method m = class_getInstanceMethod(metaClass, replacedSelector);
+	XCTAssert(m != NULL);
+	
 	m = class_getInstanceMethod(metaClass, originalSelector);
 	XCTAssert(m != NULL);
 	
